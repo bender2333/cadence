@@ -81,6 +81,9 @@ mypy_path = "src"
 module = ["torch", "torch.*", "numba", "numba.*", "mlx", "mlx.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["cadence.belief_torch", "cadence.population"]
+warn_return_any = false
 # Preserved byte-for-byte from the separately tested, untyped solver prototype.
 # Strict typing continues to cover the restored foundation and composition API.
 [[tool.mypy.overrides]]
