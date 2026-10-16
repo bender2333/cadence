@@ -42,7 +42,7 @@ Issues = "https://github.com/muellerberndt/cadence/issues"
 packages = ["src/cadence"]
 
 [tool.hatch.build.targets.sdist]
-only-include = ["src", "tests", "docs", "examples", "benchmarks", "README.md", "MANIFESTO.md", "AGENTS.md", "CONTRIBUTING.md", "CHANGELOG.md", "LICENSE", "pyproject.toml"]
+only-include = ["src", "tests", "docs", "examples", "benchmarks", "scripts", "README.md", "MANIFESTO.md", "AGENTS.md", "CONTRIBUTING.md", "CHANGELOG.md", "LICENSE", "pyproject.toml"]
 exclude = ["**/.lake/**", "*.olean", "*.ilean", "*.olean.private", "*.olean.server",
   # Receipts that no test reads stay in the repository and the release assets, not in the sdist.
   "benchmarks/competing/results/**", "benchmarks/chain/results/**",
@@ -81,9 +81,11 @@ mypy_path = "src"
 module = ["torch", "torch.*", "numba", "numba.*", "mlx", "mlx.*"]
 ignore_missing_imports = true
 
+# PyTorch 2.4.0 stubs infer scalar * Tensor operations as Any; relax warn_return_any for torch modules.
 [[tool.mypy.overrides]]
 module = ["cadence.belief_torch", "cadence.population"]
 warn_return_any = false
+
 # Preserved byte-for-byte from the separately tested, untyped solver prototype.
 # Strict typing continues to cover the restored foundation and composition API.
 [[tool.mypy.overrides]]
