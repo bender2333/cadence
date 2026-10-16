@@ -78,7 +78,7 @@ packages = ["cadence"]
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
-module = ["torch", "torch.*", "numba", "numba.*", "mlx", "mlx.*"]
+module = ["torch", "torch.*", "torch_npu", "torch_npu.*", "numba", "numba.*", "mlx", "mlx.*"]
 ignore_missing_imports = true
 
 # PyTorch 2.4.0 stubs infer scalar * Tensor operations as Any; relax warn_return_any for torch modules.

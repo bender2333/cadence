@@ -138,7 +138,7 @@ device, a comparison with an MLP, learning quality at scale or energy use in jou
 ```python
 connectome = cd.layered(4, 16, 2, seed=0)
 neuron_model = cd.learning_neuron_model()
-cd.NeuralGraph(connectome, neuron_model, backend="torch")                          # cuda, else mps, else cpu
+cd.NeuralGraph(connectome, neuron_model, backend="torch")                          # npu, else cuda, else mps, else cpu
 cd.NeuralGraph(connectome, neuron_model, backend="torch", device="cpu")             # force
 cd.NeuralGraph(connectome, neuron_model, backend="torch", precision="float32")      # speed on a consumer GPU
 if "mlx" in cd.available_backends():
