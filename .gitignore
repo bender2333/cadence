@@ -14,3 +14,8 @@ data/
 htmlcov/
 
 .DS_Store
+
+# Ascend NPU compilation artifacts
+kernel_meta/
+fusion_result.json
+ge_check_op.json

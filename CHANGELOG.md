@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Environment bootstrap and verification gate for Huawei Ascend NPU on Orange Pi AIpro:
+  `scripts/check.sh` enforces the executable linting, type-checking, and core testing contract
+  across Python 3.11, PyTorch 2.4.0, and `torch_npu==2.4.0` under CANN 8.0.RC3. `scripts/smoke_npu.py`
+  and `docs/installation_npu.md` document on-device verification and setup.
 - The episodic and sequential-task guides state the founder dependence of the continuation
   after teaching: the readings in which `step` eroded a taught chain where `live` kept it
   belong to the five fresh founders of the chain instrument, and on other founders both paths
