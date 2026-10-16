@@ -132,7 +132,8 @@ def test_every_python_block_is_run_or_marked_illustrative():
     unrun = [
         page.relative_to(ROOT).as_posix()
         for page in sorted((ROOT / "docs").rglob("*.md"))
-        if snippets(page.relative_to(ROOT).as_posix())
+        if not page.is_symlink()
+        and snippets(page.relative_to(ROOT).as_posix())
         and page.relative_to(ROOT).as_posix() not in covered
     ]
     assert not unrun, f"python blocks never executed: {unrun}"

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Environment bootstrap and verification gate for Huawei Ascend NPU on Orange Pi AIpro:
+  `scripts/check.sh` enforces the executable linting, type-checking, and core testing contract
+  across Python 3.11, PyTorch 2.4.0, and `torch_npu==2.4.0` under CANN 8.0.RC3. `scripts/smoke_npu.py`
+  and `docs/installation_npu.md` document on-device verification and setup.
+
 ## 0.84.3 — 2026-10-19
 
 - A brain saved between `lesson` and its next act loads and continues as the saved brain
