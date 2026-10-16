@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Ascend NPU device and float32 precision support for the PyTorch backend:
+  `available_backends()` detects `torch.npu.is_available()` and reports `"torch": "npu float32"`.
+  `_TorchKernel` recognizes `device="npu"` and `device="npu:0"`, defaults to and enforces
+  `precision="float32"`, and rejects `float64` requests with a clear `ValueError`. `Learner`
+  keeps parameters and adaptive optimizer moments resident on NPU in `float32` without host
+  round trips or unsupported float64 fallbacks.
 - Environment bootstrap and verification gate for Huawei Ascend NPU on Orange Pi AIpro:
   `scripts/check.sh` enforces the executable linting, type-checking, and core testing contract
   across Python 3.11, PyTorch 2.4.0, and `torch_npu==2.4.0` under CANN 8.0.RC3. `scripts/smoke_npu.py`

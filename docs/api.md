@@ -506,7 +506,7 @@ and a complete runnable example.
   softmax group per neuron (`-1` excludes a neuron). The temperature is a finite positive
   scalar or one value per neuron, constant within each active group. Fractional masks
   scale the local drive in both modes. `drive(s)`.
-- `available_backends()`: `{"cpu": "numpy float64", "torch": "mps float32" | "cuda float64" | "cpu float64", "mlx": "gpu float32"}`, for what is installed.
+- `available_backends()`: `{"cpu": "numpy float64", "torch": "npu float32" | "mps float32" | "cuda float64" | "cpu float64", "mlx": "gpu float32"}`, for what is installed.
 
 ## Blocks (`cadence.blocks`)
 
