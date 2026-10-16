@@ -33,7 +33,8 @@ else
         tests/test_generic_memory_checkpoint.py \
         tests/test_settlement_reports.py \
         tests/test_record_patch.py \
-        tests/test_documentation.py
+        tests/test_documentation.py \
+        tests/test_packaging.py
 fi
 
 echo "=== All checks passed cleanly! ==="

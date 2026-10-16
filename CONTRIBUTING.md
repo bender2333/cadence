@@ -138,6 +138,12 @@ mypy
 pytest -q
 ```
 
+Or run the project verification gate:
+
+```bash
+./scripts/check.sh
+```
+
 The test suite includes `tests/test_documentation.py`, which executes every Python block
 of the listed guides in order and checks that every local link and anchor in `README.md`,
 `MANIFESTO.md`, `CONTRIBUTING.md`, `AGENTS.md` and `docs/` resolves. Default pytest

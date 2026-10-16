@@ -11,6 +11,12 @@ PyTorch 2.4.0, and `torch_npu==2.4.0`.
 - **CANN Toolkit**: CANN 8.0.RC3 installed at `/usr/local/Ascend/ascend-toolkit/8.0.RC3`
 - **Python**: Python 3.11
 
+## Scope and NPU Precision Limitation
+
+Cadence has not yet implemented NPU device selection and `float32` precision clamping in the library. Items 1–4 of [ADR 0001](adr/0001-ascend-npu-torch-backend.md) (device pass-through, `float32` restriction / `float64` rejection, `available_backends` exposure, and benchmark harness) are not in scope for this bootstrap ticket (#2).
+
+**Warning**: The Ascend 310B4 AI Core does not support native `float64` (`DT_DOUBLE`) operations. PyTorch operations on `npu:0` must use `float32` (or lower). Calling `Brain.compose(..., backend="torch", device="npu")` currently defaults to `float64` and will fail with `E89999 op[MatMul2] The op do not support the dtype: DT_DOUBLE` until library NPU backend integration is implemented in subsequent tickets.
+
 ## 1. Initialize CANN Environment
 
 CANN provides the Ascend driver interface and TBE operator compilation tools.
@@ -48,13 +54,13 @@ source .venv/bin/activate
 
 ## 3. Install PyTorch 2.4.0 and torch_npu 2.4.0
 
-Install the matching PyTorch 2.4.0 and Huawei `torch_npu==2.4.0` wheels for CANN 8.0.RC3 on Linux aarch64:
+Install matching PyTorch 2.4.0 and Huawei `torch_npu==2.4.0` wheels for CANN 8.0.RC3 on Linux aarch64 from PyPI or the Ascend mirror:
 
 ```bash
-pip install torch==2.4.0
-pip install torch_npu==2.4.0
+pip install torch==2.4.0 torch_npu==2.4.0
 ```
 
+Note: `torch_npu` requires `torch==2.4.0` as an exact version peer.
 ## 4. Install Cadence and Development Dependencies
 
 Install Cadence in editable mode with development tools:
@@ -65,14 +71,18 @@ pip install -e ".[dev]"
 
 ### Compatibility Note: CANN 8.0.RC3 TBE and NumPy 2.x
 
-CANN 8.0.RC3's operator compiler (TBE / TVM) references legacy type alias `np.float_`.
-When using modern NumPy (2.x), create `.venv/lib/python3.11/site-packages/sitecustomize.py`
-to preserve compatibility across spawned operator compilation workers:
+CANN 8.0.RC3's operator compiler (TBE / TVM) references legacy NumPy aliases (`np.float_`, `np.bool8`, etc.) that were removed in NumPy 2.0.
+
+When using NumPy 2.x, inject a compatibility shim into the active environment's `sitecustomize.py`. `sitecustomize` is loaded automatically by Python's `site` module for all invocations within the virtual environment, including worker subprocesses spawned by the CANN TBE operator compiler. In contrast, `usercustomize` relies on user site-packages (`~/.local`), which is skipped when virtual environments run with `PYTHONNOUSERSITE` or `-s`.
+
+Generate `sitecustomize.py` in an environment-agnostic location using `site.getsitepackages()`:
 
 ```bash
-cat << 'EOF' > .venv/lib/python3.11/site-packages/sitecustomize.py
+SITE_PKG=$(python -c "import site; print(site.getsitepackages()[0])")
+cat << 'EOF' > "$SITE_PKG/sitecustomize.py"
 import numpy as np
 
+# CANN 8.0.RC3 TBE runtime compatibility with NumPy 2.x
 if not hasattr(np, "float_"):
     np.float_ = np.float64
 if not hasattr(np, "int_"):
@@ -81,9 +91,14 @@ if not hasattr(np, "uint_"):
     np.uint_ = np.uint64
 if not hasattr(np, "complex_"):
     np.complex_ = np.complex128
+if not hasattr(np, "bool8"):
+    np.bool8 = np.bool_
+if not hasattr(np, "object_"):
+    np.object_ = object
+if not hasattr(np, "unicode_"):
+    np.unicode_ = np.str_
 EOF
 ```
-
 ## 5. Direct NPU Smoke Test
 
 Verify that PyTorch recognizes the Ascend accelerator and allocates tensors on `npu:0`:
