@@ -57,15 +57,16 @@ fi
 
 echo "=== 4. Core test suite (pytest) ==="
 if [ $# -gt 0 ]; then
-    timeout 300s pytest "$@"
+    timeout 600s pytest "$@"
 else
-    timeout 300s pytest -q \
+    timeout 600s pytest -q \
         tests/test_composed_brain.py \
         tests/test_qualified_learning.py \
         tests/test_feedback_transaction.py \
         tests/test_generic_memory_checkpoint.py \
         tests/test_settlement_reports.py \
         tests/test_record_patch.py \
+        tests/test_npu.py \
         tests/test_documentation.py \
         tests/test_packaging.py
 fi
