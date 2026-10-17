@@ -344,18 +344,24 @@ def test_learner_npu_parameter_updates_and_moments() -> None:
     connectome = cd.layered(4, 16, 2, seed=0)
     neuron_model = cd.learning_neuron_model()
     graph = cd.NeuralGraph(connectome, neuron_model, backend="torch", device="npu", precision="float32")
-    config = cd.LearnerConfig(momentum=0.9, normalize=0.9, free_steps=5, nudged_steps=5, qualified=False)
+    host_graph = cd.NeuralGraph(connectome, neuron_model)
+    config = cd.LearnerConfig(eta=0.01, momentum=0.9, normalize=0.9, free_steps=5, nudged_steps=5, qualified=False)
     learner = cd.Learner(graph, np.arange(2), config)
+    host_learner = cd.Learner(host_graph, np.arange(2), config)
 
     drive = np.zeros((2, connectome.n))
     drive[:, :4] = 0.5
     targets = np.array([0, 1])
 
     learned, report = learner.step(drive, targets)
+    host_learned, host_report = host_learner.step(drive, targets)
     assert report["accepted"] == 1.0
     assert report["scale_step"] > 0
     assert report["bias_step"] > 0
 
+    # Parameter updates match host reference within float32 tolerance
+    np.testing.assert_allclose(learner.brain.efficacy, host_learner.brain.efficacy, atol=1e-4, rtol=1e-4)
+    np.testing.assert_allclose(learner.brain.bias, host_learner.brain.bias, atol=1e-4, rtol=1e-4)
     kernel = learner.brain._torch
     assert kernel is not None
     assert kernel.device.type == "npu"

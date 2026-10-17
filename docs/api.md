@@ -440,7 +440,7 @@ and a complete runnable example.
   squared entries the transport is the block transport (see `cadence.blocks`); `layout`
   passes a precomputed cut, as `with_parameters` does. `brain.layout` is the cut in use.
   `precision` (torch only) is `"float32"` or `"float64"`; the default is float64 except on
-  MPS. Float32 is the speed of a consumer GPU; compare it with float64 and record the
+  MPS and NPU. Float32 is the speed of a consumer GPU; compare it with float64 and record the
   measured precision error. Parameter arrays and effective `weights` are read-only;
   assign complete `efficacy`, `bias` or `log_gain` arrays through validated setters,
   or use `with_parameters` to construct a new brain. Invalid/overflowing values are
