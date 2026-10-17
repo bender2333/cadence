@@ -144,6 +144,7 @@ def test_constructor_refuses_unknown_conflicting_and_invalid_settings(options):
         {"resting_bias": 0.1},
         {"reset_arousal": 1},
         {"learning_beta": 0.2},
+        {"precision": "float32"},
     ],
 )
 def test_invalid_retune_is_atomic_with_acquired_state_and_pending_reward(tmp_path, invalid):

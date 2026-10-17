@@ -1156,7 +1156,7 @@ class Brain:
         construction = {
             "inputs", "actions", "modules", "observers", "lateral", "sensory_scale",
             "working_memory_scale", "resting_bias", "slots", "seed", "episodic", "backend",
-            "device", "connectome", *_EPISODIC_SETTINGS,
+            "device", "precision", "connectome", *_EPISODIC_SETTINGS,
         }
         for name in options:
             if name in construction:
