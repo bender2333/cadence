@@ -16,9 +16,10 @@ backends do the same arithmetic:
   neuron-by-neuron reference is compared against.
 * ``"torch"``: the same scatter with ``index_add_`` on whatever device
   torch offers, CUDA in float64, Apple silicon in float32 (MPS has no
-  float64), CPU in float64. Use it for interactive work and for very large
-  connectomes, and keep a conformance check against ``"cpu"``; the fly brain
-  has neurons on knife edges where float32 flips a bistable readout.
+  float64), Ascend NPU in float32 (NPU has no float64), CPU in float64. Use it
+  for interactive work and for very large connectomes, and keep a conformance
+  check against ``"cpu"``; the fly brain has neurons on knife edges where
+  float32 flips a bistable readout.
 
 Three kinds of parameter sit on a brain, all defaulting to the connectome:
 ``efficacy``, one signed number per synapse (the connectome's sign unless a
@@ -79,7 +80,14 @@ def available_backends() -> dict[str, str]:
     try:
         import torch
 
-        if torch.cuda.is_available():
+        try:
+            import torch_npu  # noqa: F401
+        except ImportError:
+            pass
+
+        if hasattr(torch, "npu") and torch.npu.is_available():
+            out["torch"] = "npu float32"
+        elif torch.cuda.is_available():
             out["torch"] = "cuda float64"
         elif getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
             out["torch"] = "mps float32"
@@ -1173,7 +1181,7 @@ class Brain:
 
 
 class _TorchKernel:
-    """Gather-scatter settling on a torch device; float32 on MPS, float64 elsewhere."""
+    """Gather-scatter settling on a torch device; float32 on MPS and NPU, float64 elsewhere."""
 
     def __init__(
         self,
@@ -1192,7 +1200,13 @@ class _TorchKernel:
         self.backend_name = "torch"
         self._rest: Any = None
         if device is None:
-            if torch.cuda.is_available():
+            try:
+                import torch_npu  # noqa: F401
+            except ImportError:
+                pass
+            if hasattr(torch, "npu") and torch.npu.is_available():
+                device = "npu"
+            elif torch.cuda.is_available():
                 device = "cuda"
             elif (
                 getattr(torch.backends, "mps", None) is not None
@@ -1201,19 +1215,26 @@ class _TorchKernel:
                 device = "mps"
             else:
                 device = "cpu"
+        elif isinstance(device, str) and (device == "npu" or device.startswith("npu:")):
+            try:
+                import torch_npu  # noqa: F401
+            except ImportError:
+                pass
         self.device = torch.device(device)
         if precision is None:
-            self.dtype = torch.float32 if self.device.type == "mps" else torch.float64
+            self.dtype = torch.float32 if self.device.type in ("mps", "npu") else torch.float64
         elif precision in ("float32", "float64"):
             self.dtype = torch.float32 if precision == "float32" else torch.float64
         else:
             raise ValueError("precision must be 'float32' or 'float64'")
         if self.device.type == "mps" and self.dtype == torch.float64:
             raise ValueError("MPS has no float64; use precision='float32' or another device")
+        if self.device.type == "npu" and self.dtype == torch.float64:
+            raise ValueError("NPU has no float64; use precision='float32' or another device")
         neuron_model._validate_precision("float32" if self.dtype == torch.float32 else "float64")
-        # The parameters, kept on the device in float64 (float32 on MPS, which has no float64)
+        # The parameters, kept on the device in float64 (float32 on MPS and NPU)
         # so a learner can move them there without a host round trip per update.
-        self.param_dtype = torch.float32 if self.device.type == "mps" else torch.float64
+        self.param_dtype = torch.float32 if self.device.type in ("mps", "npu") else torch.float64
         self.gain_pre = torch.from_numpy(np.ascontiguousarray(gain_pre)).to(
             self.device, self.param_dtype
         )

@@ -29,6 +29,7 @@ cd.available_backends()
 | `"cpu"` | NumPy; optional Numba and SciPy | float64 | base install; `[fast]` for acceleration | first examples, numerical checks, sparse graphs |
 | `"torch"` on CUDA | NVIDIA GPU | float64, or float32 with `precision="float32"` | `cadence-net[accel]` | large brains and long lives; receipts too, in float64 |
 | `"torch"` on MPS | Apple silicon GPU through Metal | float32 | `cadence-net[accel]` | a Mac when torch is what you have |
+| `"torch"` on NPU | Huawei Ascend NPU through torch_npu | float32 | Ascend CANN + torch_npu | an Ascend board (e.g. Orange Pi AIpro) |
 | `"mlx"` | Apple silicon GPU through MLX, unified memory | float32 | `cadence-net[apple]` | an alternative Apple backend; benchmark the actual workload |
 | `"torch"` on CPU | torch CPU | float64 | `cadence-net[accel]` | one code path on a box without a GPU |
 
@@ -49,7 +50,7 @@ settings and the actor's adaptive settings are separate configurations.
 Scalar step reports synchronize. Reading parameters or optimizer history,
 saving a checkpoint, or entering a host-only path materializes the required arrays.
 Public optimizer attributes remain mutable NumPy arrays; edits made through them are
-picked up by the next update. History uses float32 on MPS and float64 on torch CPU/CUDA.
+picked up by the next update. History uses float32 on MPS and NPU, and float64 on torch CPU/CUDA.
 MLX contrast returns arrays to the host for the optimizer.
 
 Torch and MLX factor the phase contrast as
@@ -100,14 +101,14 @@ Warm up the backend and synchronize the GPU around wall-clock measurements.
 
 The CPU backend uses NumPy float64, with optional numba and SciPy acceleration through
 `cadence-net[fast]`. Cap BLAS threads when running independent experiment workers;
-`cadence.timing.environment()` records thread settings. PyTorch supports CPU, CUDA and
-Apple MPS, while MLX provides an additional Apple path. A single brain uses one
+`cadence.timing.environment()` records thread settings. PyTorch supports CPU, CUDA,
+Apple MPS and Ascend NPU, while MLX provides an additional Apple path. A single brain uses one
 device. Neither backend choice nor parameter count establishes efficiency by itself.
 
 CUDA defaults to float64; `precision="float32"` selects float32 settling. Hardware
 throughput and the useful precision depend on the device and problem. Compare outputs,
 residuals and learning curves with float64, especially near multiple equilibria. MPS
-uses float32 for parameters and state because it does not support float64.
+and NPU use float32 for parameters and state because they do not support float64.
 
 ## Residual checks and synchronization
 
@@ -119,7 +120,7 @@ count measures numerical settling work; it is not a measure of surprise or task 
 
 For unread float64 Torch states, residual transport and reduction stay on the device and
 only one scalar per row returns. Reading or editing the host potential/adaptation selects
-the host reference, as does `residual(..., on_device=False)`. Float32 Torch and MPS states
+the host reference, as does `residual(..., on_device=False)`. Float32 Torch, MPS and NPU states
 also retain the float64 host reference, so faster checks do not quietly weaken its precision.
 Accelerator block products recompute source products at each step without reading
 `torch.equal` flags on the host. CPU blocks retain the exact source cache. The equations
@@ -138,7 +139,7 @@ device, a comparison with an MLP, learning quality at scale or energy use in jou
 ```python
 connectome = cd.layered(4, 16, 2, seed=0)
 neuron_model = cd.learning_neuron_model()
-cd.NeuralGraph(connectome, neuron_model, backend="torch")                          # cuda, else mps, else cpu
+cd.NeuralGraph(connectome, neuron_model, backend="torch")                          # npu, else cuda, else mps, else cpu
 cd.NeuralGraph(connectome, neuron_model, backend="torch", device="cpu")             # force
 cd.NeuralGraph(connectome, neuron_model, backend="torch", precision="float32")      # speed on a consumer GPU
 if "mlx" in cd.available_backends():

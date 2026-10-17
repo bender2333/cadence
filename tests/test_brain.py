@@ -19,6 +19,57 @@ def test_available_backends_names_cpu() -> None:
     backends = cd.available_backends()
     assert backends["cpu"].startswith("numpy")
 
+def test_available_backends_detects_npu_when_available() -> None:
+    try:
+        import torch
+
+        try:
+            import torch_npu  # noqa: F401
+        except ImportError:
+            pass
+        if not (hasattr(torch, "npu") and torch.npu.is_available()):
+            pytest.skip("NPU hardware unavailable")
+    except ImportError:
+        pytest.skip("torch not installed")
+
+    backends = cd.available_backends()
+    assert backends.get("torch") == "npu float32"
+
+
+@pytest.mark.skipif(
+    not (cd.available_backends().get("torch") == "npu float32"),
+    reason="NPU hardware unavailable",
+)
+def test_torch_kernel_npu_device_and_float32() -> None:
+    import torch
+
+    connectome = cd.layered(4, 16, 2, seed=0)
+    neuron_model = cd.learning_neuron_model()
+
+    graph = cd.NeuralGraph(connectome, neuron_model, backend="torch", device="npu", precision="float32")
+    assert graph._torch.device.type == "npu"
+    assert graph._torch.dtype == torch.float32
+    assert graph._torch.param_dtype == torch.float32
+    assert graph._torch.scale.device.type == "npu"
+    assert graph._torch.scale.dtype == torch.float32
+
+    graph0 = cd.NeuralGraph(connectome, neuron_model, backend="torch", device="npu:0")
+    assert graph0._torch.device.type == "npu"
+    assert graph0._torch.dtype == torch.float32
+    assert graph0._torch.param_dtype == torch.float32
+
+
+@pytest.mark.skipif(
+    not (cd.available_backends().get("torch") == "npu float32"),
+    reason="NPU hardware unavailable",
+)
+def test_torch_kernel_npu_rejects_float64() -> None:
+    connectome = cd.layered(4, 16, 2, seed=0)
+    neuron_model = cd.learning_neuron_model()
+    for dev in ("npu", "npu:0"):
+        with pytest.raises(ValueError, match="NPU has no float64"):
+            cd.NeuralGraph(connectome, neuron_model, backend="torch", device=dev, precision="float64")
+
 
 def test_settle_reports_steps_and_stops_at_tolerance() -> None:
     brain = cd.NeuralGraph(ring(), cd.NeuronModel(gain=0.03, dt=0.5))
