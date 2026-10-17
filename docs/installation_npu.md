@@ -13,9 +13,14 @@ PyTorch 2.4.0, and `torch_npu==2.4.0`.
 
 ## Scope and NPU Precision Limitation
 
-Cadence has not yet implemented NPU device selection and `float32` precision clamping in the library. Items 1–4 of [ADR 0001](adr/0001-ascend-npu-torch-backend.md) (device pass-through, `float32` restriction / `float64` rejection, `available_backends` exposure, and benchmark harness) are not in scope for this bootstrap ticket (#2).
+Ascend NPU device selection and `float32` precision enforcement are supported in Cadence core (#3).
+When `backend="torch"` is selected with `device="npu"` (or `"npu:0"`), precision defaults to `float32`
+and parameters reside on the NPU in `float32`.
 
-**Warning**: The Ascend 310B4 AI Core does not support native `float64` (`DT_DOUBLE`) operations. PyTorch operations on `npu:0` must use `float32` (or lower). Calling `Brain.compose(..., backend="torch", device="npu")` currently defaults to `float64` and will fail with `E89999 op[MatMul2] The op do not support the dtype: DT_DOUBLE` until library NPU backend integration is implemented in subsequent tickets.
+**Warning**: The Ascend 310B4 AI Core does not support native `float64` (`DT_DOUBLE`) operations.
+PyTorch operations on `npu:0` must use `float32`. Requesting `precision="float64"` with NPU devices
+raises `ValueError: NPU has no float64; use precision='float32' or another device`, matching the
+MPS precision contract.
 
 ## 1. Initialize CANN Environment
 
@@ -129,5 +134,5 @@ Run the repository verification gate:
 ./scripts/check.sh
 ```
 
-This gate runs `ruff check src tests`, `mypy`, and the core pytest suite, ensuring
-code hygiene and numerical contract stability.
+This gate runs `ruff check src tests`, `mypy`, NPU smoke test (when `available_backends()["torch"] == "npu float32"`), and the core pytest suite, ensuring
+code hygiene and numerical contract stability. On the Ascend board, `check.sh` attempts to acquire `/var/lock/board_npu_heavy.lock` to prevent concurrent heavy tasks from exhausting device memory.

@@ -16,9 +16,10 @@ backends do the same arithmetic:
   neuron-by-neuron reference is compared against.
 * ``"torch"``: the same scatter with ``index_add_`` on whatever device
   torch offers, CUDA in float64, Apple silicon in float32 (MPS has no
-  float64), CPU in float64. Use it for interactive work and for very large
-  connectomes, and keep a conformance check against ``"cpu"``; the fly brain
-  has neurons on knife edges where float32 flips a bistable readout.
+  float64), Ascend NPU in float32 (NPU has no float64), CPU in float64. Use it
+  for interactive work and for very large connectomes, and keep a conformance
+  check against ``"cpu"``; the fly brain has neurons on knife edges where
+  float32 flips a bistable readout.
 
 Three kinds of parameter sit on a brain, all defaulting to the connectome:
 ``efficacy``, one signed number per synapse (the connectome's sign unless a
