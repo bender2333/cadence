@@ -4,12 +4,19 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# Enforce single-instance execution to protect board memory & NPU
-exec 200>/tmp/cadence_gate.lock
-if ! flock -n 200; then
-    echo "ERROR: Another cadence check/test instance is running. Aborting to prevent NPU/resource contention." >&2
-    exit 1
+# Enforce board global exclusive lock if not already held by parent
+if [ "${BOARD_HEAVY_LOCK_HELD:-0}" != "1" ]; then
+    exec 200>/var/lock/board_npu_heavy.lock
+    if ! flock -w 3600 200; then
+        echo "ERROR: Timed out waiting for /var/lock/board_npu_heavy.lock" >&2
+        exit 1
+    fi
+    export BOARD_HEAVY_LOCK_HELD=1
 fi
+
+# Attach to agent cgroup (MemoryMax=5.2G)
+[ -f /sys/fs/cgroup/unified/agent.slice/cgroup.procs ] && echo $$ > /sys/fs/cgroup/unified/agent.slice/cgroup.procs 2>/dev/null || true
+[ -f /sys/fs/cgroup/memory/agent.slice/cgroup.procs ] && echo $$ > /sys/fs/cgroup/memory/agent.slice/cgroup.procs 2>/dev/null || true
 
 # Activate .venv if present and not already activated
 if [ -z "${VIRTUAL_ENV:-}" ] && [ -d "$REPO_ROOT/.venv" ]; then
