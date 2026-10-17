@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Dedicated board-level Ascend NPU integration test suite:
+  `tests/test_npu.py` exercises full lifecycle operations on Ascend NPU hardware, including
+  multi-module `NeuralGraph` equilibrium relaxation asserting residual <= 0.003 on free and nudged
+  phases, continuous interaction cycles on composed brains with `Brain.compose(..., backend="torch", device="npu", precision="float32")`,
+  `live` routine and repair cycles, `step` explicit teaching and reward eligibility, and round-trip
+  save/load state preservation across CPU <-> NPU device transfers. `Brain` documents and accepts
+  `precision` on `__init__` and `compose` as a construction setting rejected by `retune`. Integrated
+  into `scripts/check.sh` with graceful skips on non-NPU hosts.
 - Ascend NPU device and float32 precision support for the PyTorch backend:
   `available_backends()` detects `torch.npu.is_available()` and reports `"torch": "npu float32"`.
   `_TorchKernel` recognizes `device="npu"` and `device="npu:0"`, defaults to and enforces

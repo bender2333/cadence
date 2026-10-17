@@ -613,6 +613,7 @@ class Brain:
         seed: int = 0,
         backend: Backend = "cpu",
         device: str | None = None,
+        precision: str | None = None,
         **genes: Any,
     ) -> None:
         learning_genes, actor_genes, arousal_genes = split_genes(genes)
@@ -678,7 +679,12 @@ class Brain:
                 target[np.asarray(members, dtype=np.int64)] = True
             bias[selected & ~excluded] = resting_bias
         brain = NeuralGraph(
-            connectome, learning_neuron_model(dt=1.0), backend=backend, device=device, bias=bias
+            connectome,
+            learning_neuron_model(dt=1.0),
+            backend=backend,
+            device=device,
+            precision=precision,
+            bias=bias,
         )
         self.resting_bias = resting_bias
         self._composition: dict[str, Any] | None = None  # construction provenance, not parameters
@@ -1150,7 +1156,7 @@ class Brain:
         construction = {
             "inputs", "actions", "modules", "observers", "lateral", "sensory_scale",
             "working_memory_scale", "resting_bias", "slots", "seed", "episodic", "backend",
-            "device", "connectome", *_EPISODIC_SETTINGS,
+            "device", "precision", "connectome", *_EPISODIC_SETTINGS,
         }
         for name in options:
             if name in construction:
