@@ -1863,7 +1863,7 @@ class Brain:
         construction = {
             "inputs", "actions", "modules", "observers", "lateral", "sensory_scale",
             "working_memory_scale", "resting_bias", "slots", "seed", "episodic", "backend",
-            "device", "connectome", "history_decays", "history_scale", *_EPISODIC_SETTINGS,
+            "device", "precision", "connectome", "history_decays", "history_scale", *_EPISODIC_SETTINGS,
             "recall", "recall_scale", *(f"recall_{name}" for name in Recall.CONSTRUCTION),
             *(f"recall_{name}" for name in Recall.CONSTRUCTION_OPTIONS), "code",
         }

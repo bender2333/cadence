@@ -834,7 +834,8 @@ that recursive benefit or automatic reflective behavior has been learned.
   to the association cortex: `1.2` since 0.82.0, `12.0` before. It is construction-only
   and recorded in the composition; a checkpoint saved before 0.82.0 reads as `12.0`
   ([context](context.md)).
-  Constructor `options` accept memory/backend settings and every config field
+  Constructor `options` accept memory/backend settings (including `backend`,
+  `device` and `precision`, passed to `NeuralGraph`) and every config field
   through `learning_<field>`, `actor_<field>` or `arousal_<field>`.
   `temperature` aliases `learning_temperature`, shared by teaching and the
   actor policy. Named overrides change only those fields; complete config
@@ -888,7 +889,7 @@ that recursive benefit or automatic reflective behavior has been learned.
   with `working_memory`, `prefrontal`; projections sensory to association (reciprocal for a
   visual cortex), association to motor (reciprocal), and prefrontal to association at
   `memory_scale`.
-- `Brain(connectome, *, episodic=True, consolidation=0.05, memory_decay=0.9, memory_rate=1.0, memory_amplitude=1.0, memory_fan_in=None, working_memory_decay=0.0, working_memory_amplitude=3.0, working_memory_focus=0.0, efference_decay=0.2, efference_amplitude=0.0, history_decays=(), history_amplitude=3.0, recall=False, learning=None, reward=None, resting_bias=0.0, slots=1, arousal=None, seed=0, backend="cpu", device=None, inputs=None, code=None, **genes)`:
+- `Brain(connectome, *, episodic=True, consolidation=0.05, memory_decay=0.9, memory_rate=1.0, memory_amplitude=1.0, memory_fan_in=None, working_memory_decay=0.0, working_memory_amplitude=3.0, working_memory_focus=0.0, efference_decay=0.2, efference_amplitude=0.0, history_decays=(), history_amplitude=3.0, recall=False, learning=None, reward=None, resting_bias=0.0, slots=1, arousal=None, seed=0, backend="cpu", device=None, inputs=None, code=None, precision=None, **genes)`:
   the memories key on the observation code: the observation itself, or with `code=units`
   the brain's own sparse code of it, `units` code neurons with positive weights reading
   each input through an ON channel `max(x, 0)` and an OFF channel `max(-x, 0)`, every
@@ -913,6 +914,9 @@ that recursive benefit or automatic reflective behavior has been learned.
   At construction, settings for disabled or absent components have no runtime
   effect and are omitted from `describe()["genes"]`. `retune` rejects those
   settings when the component is absent.
+  `precision` (torch only) is `"float32"` or `"float64"`, passed through to
+  `NeuralGraph`; the default is float64 except on MPS and NPU, and requesting
+  `float64` on NPU or MPS raises `ValueError`.
   `resting_bias` is a finite nonnegative real scalar; booleans and arrays are rejected.
   It initializes named populations outside the `sensory`, `visual`, `prefrontal`,
   `efference`, `history` and `motor` families, and with `recall=True` the `recall` and

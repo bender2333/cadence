@@ -16,7 +16,8 @@ python -m pip install "cadence-net[fast]==0.84.3"
 Replace `[fast]` with `[accel]` for PyTorch or `[apple]` for MLX. From a checkout,
 use `python -m pip install -e ".[fast]"`. An installed accelerator library is
 not enough to select it: pass `backend="torch"` or `backend="mlx"` to
-`Brain.compose` or the lower-level `NeuralGraph`.
+`Brain.compose` or the lower-level `NeuralGraph`. `precision="float32"` may
+also be passed directly to `Brain.compose` or `NeuralGraph`.
 
 ```python
 import cadence as cd
@@ -105,10 +106,12 @@ The CPU backend uses NumPy float64, with optional numba and SciPy acceleration t
 Apple MPS and Ascend NPU, while MLX provides an additional Apple path. A single brain uses one
 device. Neither backend choice nor parameter count establishes efficiency by itself.
 
-CUDA defaults to float64; `precision="float32"` selects float32 settling. Hardware
-throughput and the useful precision depend on the device and problem. Compare outputs,
-residuals and learning curves with float64, especially near multiple equilibria. MPS
-and NPU use float32 for parameters and state because they do not support float64.
+CUDA defaults to float64; `precision="float32"` selects float32 settling on
+`Brain.compose` or `NeuralGraph`. Hardware throughput and the useful precision
+depend on the device and problem. Compare outputs, residuals and learning curves
+with float64, especially near multiple equilibria. MPS and NPU use float32 for
+parameters and state because they do not support float64; requesting `float64`
+on NPU or MPS raises `ValueError`.
 
 ## Residual checks and synchronization
 

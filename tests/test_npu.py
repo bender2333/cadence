@@ -174,3 +174,30 @@ def test_checkpoint_round_trip_cpu_npu_transfer(tmp_path: Path) -> None:
     b_npu2.learn(np.array([1.0, 0.0]), np.array([False, False]), x)
     assert b_npu2.basal_ganglia.updates == updates + 1
     assert not b_npu2.pending_feedback
+
+
+def test_npu_rejects_float64_precision() -> None:
+    with pytest.raises(ValueError, match="NPU has no float64"):
+        cd.Brain.compose(
+            inputs=4,
+            actions=2,
+            backend="torch",
+            device="npu",
+            precision="float64",
+        )
+
+
+def test_npu_retune_rejects_precision() -> None:
+    brain = cd.Brain.compose(
+        inputs=4,
+        actions=2,
+        modules=(8,),
+        seed=1,
+        backend="torch",
+        device="npu",
+        precision="float32",
+    )
+    with pytest.raises(
+        ValueError, match="precision is a construction setting; retune preserves the brain"
+    ):
+        brain.retune(precision="float32")
