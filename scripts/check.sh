@@ -8,12 +8,12 @@ cd "$REPO_ROOT"
 if [ "${BOARD_HEAVY_LOCK_HELD:-0}" != "1" ]; then
     if ( exec 200>>/var/lock/board_npu_heavy.lock ) 2>/dev/null; then
         exec 200>>/var/lock/board_npu_heavy.lock
-        if flock -w 3600 200 2>/dev/null; then
+        if flock -w 300 200 2>/dev/null; then
             export BOARD_HEAVY_LOCK_HELD=1
         fi
     elif ( exec 200</var/lock/board_npu_heavy.lock ) 2>/dev/null; then
         exec 200</var/lock/board_npu_heavy.lock
-        if flock -w 3600 200 2>/dev/null; then
+        if flock -w 300 200 2>/dev/null; then
             export BOARD_HEAVY_LOCK_HELD=1
         fi
     fi
