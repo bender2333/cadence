@@ -89,12 +89,16 @@ When the source set `S` has `ep_structure(brain, fixed_inputs=S).fixed_incoming_
 the system Jacobian in the block ordering `(S, free)` is block-lower-triangular:
 
 1. Sources evolve autonomously as `v_S <- (1 - dt) v_S + dt c_S` and contract at rate `1 - dt`.
-2. Projections from sources into the free block `W_Sf act(v_S)` act as an external field;
-   they add nothing to the free-block Lipschitz constant. The free block contracts at rate
-   `q_free = 1 - dt (1 - L rho_free)`, where `rho_free` (`row_mass_free`) counts incoming
+2. Projections from sources into the free block `W_Sf act(v_S)` act as an external field once source
+   inputs reach equilibrium; they add nothing to the free-block Lipschitz constant. The free block contracts
+   at rate `q_free = 1 - dt (1 - L rho_free)`, where `rho_free` (`row_mass_free`) counts incoming
    effective weights on free->free edges only.
-3. By cascade contraction, the full system converges to a unique fixed point at rate
-   `max(q_free, 1 - dt)`.
+3. The cascade system converges to a unique fixed point with asymptotic rate `rate = max(q_free, 1 - dt)`.
+   This `rate` is the asymptotic convergence rate after source transients decay, not a whole-graph
+   single-step Lipschitz constant: source differences act as a coupling term into the free block while sources
+   settle, so the full-system one-step supremum distance can expand. Consequently, derived single-step bounds
+   (`error_bound`, `apriori_bound`, `steps_for`) underestimate distance under drive changes and raise `ValueError`
+   for cascade certificates.
 
 Pass `sources` to `certificate`:
 
