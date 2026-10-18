@@ -76,6 +76,54 @@ different, local qualification: it can accept a stable equilibrium when the glob
 row-mass bound is unavailable, but does not restore a uniqueness theorem. Inspect
 `phase.qualified` and its `phase.refinement` diagnostics. The
 [recursive-training guide](recursive-training.md) covers that policy and its cost.
+## Cascade certificate for driven networks
+
+In driven networks (such as sensory input neurons feeding recurrent column neurons),
+one-way input neurons have no incoming effective connections. Under the full-graph
+certificate, incoming projections from input neurons count toward every downstream
+neuron's row-mass budget. Scaling up input synapses to drive recurrent neurons into
+their nonlinear regime increases whole-graph `row_mass` past the `1 / L` limit,
+failing the whole-graph certificate even when recurrent feedback is contracting.
+
+When the source set `S` has `ep_structure(brain, fixed_inputs=S).fixed_incoming_mass <= 1e-12`,
+the system Jacobian in the block ordering `(S, free)` is block-lower-triangular:
+
+1. Sources evolve autonomously as `v_S <- (1 - dt) v_S + dt c_S` and contract at rate `1 - dt`.
+2. Projections from sources into the free block `W_Sf act(v_S)` act as an external field once source
+   inputs reach equilibrium; they add nothing to the free-block Lipschitz constant. The free block contracts
+   at rate `q_free = 1 - dt (1 - L rho_free)`, where `rho_free` (`row_mass_free`) counts incoming
+   effective weights on free->free edges only.
+3. The cascade system converges to a unique fixed point with asymptotic rate `rate = max(q_free, 1 - dt)`.
+   This `rate` is the asymptotic convergence rate after source transients decay, not a whole-graph
+   single-step Lipschitz constant: source differences act as a coupling term into the free block while sources
+   settle, so the full-system one-step supremum distance can expand. Consequently, derived single-step bounds
+   (`error_bound`, `apriori_bound`, `steps_for`) underestimate distance under drive changes and raise `ValueError`
+   for cascade certificates.
+
+Pass `sources` to `certificate`:
+
+```python
+connectome = cd.layered(4, 8, 2, density=1.0, init=0.2)
+inputs = tuple(connectome.populations["input"])
+brain = cd.NeuralGraph(connectome, cd.learning_neuron_model())
+cert = cd.certificate(brain, sources=inputs)
+print(cert.row_mass, cert.row_mass_free, cert.rate, cert.certified)
+```
+
+If any declared source neuron receives incoming effective mass, `certificate` raises
+`ValueError("source neurons must have zero incoming effective mass")`.
+
+### Interaction with `LearnerConfig.scale_cap`
+
+Scaling input synapses allows stronger drive into recurrent neurons while keeping
+`row_mass_free` within the contraction budget. However, during training, `Learner.step`
+clips every plastic synapse's efficacy to `[-scale_cap, scale_cap]` (default `scale_cap=8.0`).
+If input synapses are scaled beyond `scale_cap` and left plastic, the first learning
+step silently clips them back to `scale_cap`, undoing the scaling.
+
+To maintain input scaling during learning:
+- increase `LearnerConfig(scale_cap=...)` to accommodate the scaled input efficacy, or
+- pass `Learner(..., plastic_synapses=...)` with input synapses marked non-plastic (`False`).
 
 ## Using it
 

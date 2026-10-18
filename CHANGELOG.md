@@ -1,6 +1,16 @@
 # Changelog
 
 ## Unreleased
+- Refined cascade settling certificate for driven networks (`certificate(brain, sources=...)`):
+  `certificate` accepts an optional `sources` sequence of autonomous input neurons with zero incoming
+  effective mass (`ep_structure(brain, fixed_inputs=sources).fixed_incoming_mass <= 1e-12`). Under
+  the block-lower-triangular cascade Jacobian, incoming projections from sources act as an external
+  field once source inputs reach equilibrium. `Certificate` reports `row_mass_free` (maximum incoming
+  effective weight sum among free neurons) and asymptotic cascade contraction rate `rate = max(rate_free, 1 - dt)`.
+  Derived single-step bounds (`error_bound`, `apriori_bound`, `steps_for`) require whole-graph single-step
+  contraction and raise `ValueError` for cascade certificates due to source transient coupling.
+  Documents interaction between input synapse scaling and `LearnerConfig.scale_cap` in `docs/certificate.md`
+  and `docs/learning.md`.
 - System 1 evaluation benchmark suite for Huawei Ascend NPU (`benchmarks/system1_npu`) and `npu` packaging extra:
   `benchmarks/system1_npu/` replicates the System 1 CUDA benchmark suite with frozen protocol (`protocol.json`),
   matched CPU (NumPy float64) vs NPU (`torch_npu` float32) campaign execution (`campaign.py`) for `batch=1`

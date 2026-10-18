@@ -498,6 +498,7 @@ times the synapse step (issue 126).
 | `momentum` | `LearnerConfig` | each efficacy steps on a bias-corrected running average of its contrast | 0 (off); tune with the learning rate |
 | `decay` | `LearnerConfig` | every update shrinks each plastic efficacy and bias by this fraction | 0 by default; decay also forgets useful weights |
 | `normalize`, `normalize_floor` | `LearnerConfig` | divide each efficacy's step by its bias-corrected running RMS plus a floor | 0 (off), `1e-3`; select on development data; combining momentum and RMS gives an Adam-style update |
+| `scale_cap` | `LearnerConfig` | efficacy clipping bound; clips each plastic efficacy to `[-scale_cap, scale_cap]`. Scaled input synapses in cascade-certified networks are clipped back to `scale_cap` if left plastic | 8.0 |
 | `reciprocal` | `Learner` | tie each synapse and its reverse into a reciprocal pair with one efficacy | `True` |
 | `plastic_synapses` | `Learner` | bool per synapse; the others keep their efficacy | all |
 | `plastic_neurons` | `Learner` | bool per neuron; the others keep their bias | all |
@@ -510,6 +511,12 @@ once) plus plastic neuron biases. A plastic synapse whose reverse is frozen stil
 one trainable efficacy. Report optimizer arrays and episodic memory separately when comparing
 storage; parameter count alone does not measure execution cost.
 
+`LearnerConfig.scale_cap` bounds the magnitude of plastic efficacies. In cascade-certified
+driven networks ([certificate](certificate.md#cascade-certificate-for-driven-networks)), input synapses may be
+scaled up to drive recurrent neurons into their nonlinear regime. If input synapses are plastic,
+`Learner.step` clips them back to `±scale_cap` on the first update. To retain scaled input
+synapses during training, increase `scale_cap` or freeze input synapses by setting `plastic_synapses`
+to `False` for those projections.
 ## 8. Warm starts, costs, and what to expect
 
 A free phase may start from an earlier state (`learner.free(drive, warm=state)` or

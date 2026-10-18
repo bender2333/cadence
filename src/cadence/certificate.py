@@ -54,18 +54,43 @@ class Certificate:
     lipschitz: float
     dt: float
     adaptation: bool
+    row_mass_free: float | None = None
+    sources: tuple[int, ...] | None = None
 
     def __post_init__(self) -> None:
         if not np.isfinite([self.row_mass, self.lipschitz, self.dt]).all():
             raise ValueError("certificate parameters must be finite")
         if self.row_mass < 0 or self.lipschitz <= 0 or not 0 < self.dt <= 1:
             raise ValueError("row mass must be nonnegative, Lipschitz positive, dt in (0, 1]")
+        if self.row_mass_free is not None:
+            if not np.isfinite(self.row_mass_free) or self.row_mass_free < 0:
+                raise ValueError("row_mass_free must be finite and nonnegative")
+        if self.sources is not None:
+            if not isinstance(self.sources, tuple) or not all(
+                isinstance(i, (int, np.integer)) and not isinstance(i, bool) and i >= 0
+                for i in self.sources
+            ):
+                raise ValueError("sources must be a tuple of nonnegative integers")
+
+    @property
+    def rate_free(self) -> float | None:
+        """Contraction rate on the free block; None when whole-graph."""
+        if self.row_mass_free is None:
+            return None
+        return 1.0 - self.dt * (1.0 - self.lipschitz * self.row_mass_free)
 
     @property
     def rate(self) -> float:
-        """The contraction constant ``1 - dt (1 - L rho)``; below one when certified."""
-        return 1.0 - self.dt * (1.0 - self.lipschitz * self.row_mass)
+        """The contraction constant; below one when certified.
 
+        For cascade certificates (when sources are provided), this is the
+        asymptotic contraction rate once source transients decay:
+        ``max(rate_free, 1 - dt)``.
+        """
+        if self.row_mass_free is not None:
+            rate_free = 1.0 - self.dt * (1.0 - self.lipschitz * self.row_mass_free)
+            return max(rate_free, 1.0 - self.dt)
+        return 1.0 - self.dt * (1.0 - self.lipschitz * self.row_mass)
     @property
     def certified(self) -> bool:
         return self.rate < 1.0 and not self.adaptation
@@ -80,7 +105,14 @@ class Certificate:
 
         ``movement`` is the largest change of a potential in the last step, per row;
         the bound is ``movement / (1 - rate)``. Uncertified brains get ``inf``.
+        Only valid for whole-graph contraction; cascade certificates raise ``ValueError``
+        due to source transient coupling.
         """
+        if self.row_mass_free is not None and self.sources != ():
+            raise ValueError(
+                "error_bound is only valid for whole-graph contraction certificates; "
+                "cascade certificates have source transient coupling"
+            )
         out = np.asarray(movement, dtype=float)
         if not np.isfinite(out).all() or (out < 0).any():
             raise ValueError("movement must be finite and nonnegative")
@@ -89,7 +121,16 @@ class Certificate:
         return np.asarray(out / (1.0 - self.rate))
 
     def apriori_bound(self, first_movement: np.ndarray | float, steps: int) -> np.ndarray:
-        """Distance after ``steps`` settling steps, from the first step's movement."""
+        """Distance after ``steps`` settling steps, from the first step's movement.
+
+        Only valid for whole-graph contraction; cascade certificates raise ``ValueError``
+        due to source transient coupling.
+        """
+        if self.row_mass_free is not None and self.sources != ():
+            raise ValueError(
+                "apriori_bound is only valid for whole-graph contraction certificates; "
+                "cascade certificates have source transient coupling"
+            )
         out = np.asarray(first_movement, dtype=float)
         if not np.isfinite(out).all() or (out < 0).any():
             raise ValueError("first movement must be finite and nonnegative")
@@ -101,7 +142,16 @@ class Certificate:
 
     def steps_for(self, change: float, tolerance: float) -> int:
         """Warm-start steps after a stimulus change of size ``change`` (sup norm) to be
-        within ``tolerance`` of the new equilibrium. Zero for no change."""
+        within ``tolerance`` of the new equilibrium. Zero for no change.
+
+        Only valid for whole-graph contraction; cascade certificates raise ``ValueError``
+        because source transient coupling underestimates steps under stimulus changes.
+        """
+        if self.row_mass_free is not None and self.sources != ():
+            raise ValueError(
+                "steps_for is only valid for whole-graph contraction certificates; "
+                "cascade certificates have source transient coupling"
+            )
         if not self.certified:
             raise ValueError("an uncertified brain has no step bound")
         if not np.isfinite(change) or change < 0:
@@ -119,7 +169,7 @@ class Certificate:
             return 1
         return int(math.ceil(log_ratio / -math.log(self.rate)))
 
-    def to_dict(self) -> dict[str, float | bool]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "row_mass": self.row_mass,
             "lipschitz": self.lipschitz,
@@ -128,24 +178,64 @@ class Certificate:
             "certified": self.certified,
             "mass_limit": self.mass_limit,
             "adaptation": self.adaptation,
+            "row_mass_free": self.row_mass_free,
+            "sources": self.sources,
         }
 
 
-def certificate(brain: Brain) -> Certificate:
+def certificate(brain: Brain, *, sources: Sequence[int] | None = None) -> Certificate:
     """The settling certificate of ``brain``'s free phase.
 
     Reads the effective weights, the neuron model's slope and leak, and whether adaptation
     is present. Ablation masks only remove synapses, so a certified brain stays certified
     under any mask.
+
+    When ``sources`` is provided, source neurons must have zero incoming effective connections
+    (``ep_structure(brain, fixed_inputs=sources).fixed_incoming_mass <= 1e-12``). Under the
+    block-lower-triangular cascade Jacobian, incoming projections from sources act as an external
+    field on the free block once source inputs reach equilibrium. The cascade contraction rate
+    ``max(rate_free, 1 - dt)`` is the asymptotic convergence rate after source transients decay.
+    Single-step derived bounds (``error_bound``, ``apriori_bound``, ``steps_for``) require
+    whole-graph single-step contraction and raise ``ValueError`` for cascade certificates.
     """
     model = brain.neuron_model
-    return Certificate(
-        row_mass=row_mass(brain),
-        lipschitz=lipschitz_constant(model),
-        dt=float(model.dt),
-        adaptation=model.adaptation is not None,
-    )
+    full_row_mass = row_mass(brain)
+    lipschitz = lipschitz_constant(model)
+    dt = float(model.dt)
+    adaptation = model.adaptation is not None
 
+    if sources is None:
+        return Certificate(
+            row_mass=full_row_mass,
+            lipschitz=lipschitz,
+            dt=dt,
+            adaptation=adaptation,
+        )
+
+    structure = ep_structure(brain, fixed_inputs=sources)
+    if structure.fixed_incoming_mass > 1e-12:
+        raise ValueError("source neurons must have zero incoming effective mass")
+
+    n = brain.connectome.n
+    is_source = np.zeros(n, dtype=bool)
+    is_source[list(structure.fixed_inputs)] = True
+    mask = (~is_source[brain.connectome.pre]) & (~is_source[brain.connectome.post])
+    incoming = np.bincount(
+        brain.connectome.post[mask],
+        weights=np.abs(brain.weights[mask]),
+        minlength=n,
+    )
+    free_incoming = incoming[~is_source]
+    row_mass_free = float(free_incoming.max()) if len(free_incoming) else 0.0
+
+    return Certificate(
+        row_mass=full_row_mass,
+        lipschitz=lipschitz,
+        dt=dt,
+        adaptation=adaptation,
+        row_mass_free=row_mass_free,
+        sources=structure.fixed_inputs,
+    )
 
 @dataclass(frozen=True)
 class EPStructure:
