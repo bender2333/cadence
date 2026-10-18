@@ -1,6 +1,12 @@
 # Changelog
 
 ## Unreleased
+- System 1 evaluation benchmark suite for Huawei Ascend NPU (`benchmarks/system1_npu`) and `npu` packaging extra:
+  `benchmarks/system1_npu/` replicates the System 1 CUDA benchmark suite with frozen protocol (`protocol.json`),
+  matched CPU (NumPy float64) vs NPU (`torch_npu` float32) campaign execution (`campaign.py`) for `batch=1`
+  and `batch=16` across three founder seeds, independent verification (`verify.py`), and published board
+  receipt and metrics (`RESULTS.md`). `pyproject.toml` adds the `npu = ["torch>=2.4.0", "torch-npu>=2.4.0"]`
+  optional dependency extra. `docs/contracts.md` documents device and precision contracts.
 
 - Dedicated board-level Ascend NPU integration test suite:
   `tests/test_npu.py` exercises full lifecycle operations on Ascend NPU hardware, including
