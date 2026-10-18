@@ -1,0 +1,62 @@
+[
+  {
+    "backend": "cpu",
+    "exit_code": 0,
+    "seconds": 18.702444525006285,
+    "command": [
+      "/root/cadence/.venv/bin/python",
+      "-X",
+      "utf8",
+      "/root/cadence/benchmarks/performance_baseline/campaign.py",
+      "--worker",
+      "--backend",
+      "cpu",
+      "--source-root",
+      "/root/cadence",
+      "--out",
+      "/root/cadence/benchmarks/performance_baseline/results",
+      "--protocol",
+      "/root/cadence/benchmarks/performance_baseline/protocol.json"
+    ]
+  },
+  {
+    "backend": "torch_cpu",
+    "exit_code": 0,
+    "seconds": 27.631652973999735,
+    "command": [
+      "/root/cadence/.venv/bin/python",
+      "-X",
+      "utf8",
+      "/root/cadence/benchmarks/performance_baseline/campaign.py",
+      "--worker",
+      "--backend",
+      "torch_cpu",
+      "--source-root",
+      "/root/cadence",
+      "--out",
+      "/root/cadence/benchmarks/performance_baseline/results",
+      "--protocol",
+      "/root/cadence/benchmarks/performance_baseline/protocol.json"
+    ]
+  },
+  {
+    "backend": "npu",
+    "exit_code": 0,
+    "seconds": 2178.5603382109985,
+    "command": [
+      "/root/cadence/.venv/bin/python",
+      "-X",
+      "utf8",
+      "/root/cadence/benchmarks/performance_baseline/campaign.py",
+      "--worker",
+      "--backend",
+      "npu",
+      "--source-root",
+      "/root/cadence",
+      "--out",
+      "/root/cadence/benchmarks/performance_baseline/results",
+      "--protocol",
+      "/root/cadence/benchmarks/performance_baseline/protocol.json"
+    ]
+  }
+]

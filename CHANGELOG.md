@@ -1,6 +1,15 @@
 # Changelog
 
 ## Unreleased
+- Multi-scale performance baseline comparison across CPU and Ascend NPU (`benchmarks/performance_baseline`):
+  `benchmarks/performance_baseline/` harness profiles free relaxation (`NeuralGraph.equilibrate`),
+  teaching contrast computation (`Learner.contrast`), and synaptic plasticity (`Learner.step`)
+  across network dimensions $N \in \{64, 256, 1024, 2048\}$ and batch regimes $B \in \{1, 4, 16, 64\}$
+  on CPU (NumPy float64 / PyTorch CPU float32) and Huawei Ascend 310B4 NPU (`torch_npu` float32).
+  Identifies the crossover threshold ($N \ge 1024, B = 64$) where NPU tensor cores outpace CPU cores
+  (up to 2.06x speedup on $N=2048$), confirms CPU superiority for low-latency edge closed-loop control
+  ($B = 1$), and publishes board receipt (`baseline-comparison-receipt.json.gz`) with 100% numerical
+  qualification (residual $\le 0.003$). Adds harness and receipt verification in `tests/test_performance_baseline.py`.
 - Refined cascade settling certificate for driven networks (`certificate(brain, sources=...)`):
   `certificate` accepts an optional `sources` sequence of autonomous input neurons with zero incoming
   effective mass (`ep_structure(brain, fixed_inputs=sources).fixed_incoming_mass <= 1e-12`). Under

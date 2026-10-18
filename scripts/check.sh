@@ -69,7 +69,8 @@ else
         tests/test_npu.py \
         tests/test_documentation.py \
         tests/test_packaging.py \
-        tests/test_system1_npu_receipts.py
+        tests/test_system1_npu_receipts.py \
+        tests/test_performance_baseline.py
 fi
 
 echo "=== 5. System Stability & Resource Leak Audit ==="
