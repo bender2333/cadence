@@ -4,26 +4,13 @@ from __future__ import annotations
 
 import argparse
 import gzip
-import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
 
-def digest(path: Path) -> str:
-    """Compute sha256 digest with normalized line endings."""
-    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
-
-
-def sources(root: Path) -> dict[str, str]:
-    """Compute sha256 digests for all Cadence library source files."""
-    return {
-        str(p.relative_to(root)).replace("\\", "/"): digest(p)
-        for p in sorted((root / "src/cadence").rglob("*.py"))
-    }
-
-
-def verify_campaign(campaign_dir: Path, root: Path) -> dict[str, Any]:
+# ponytail: minimal verifier helper set; add digest/sources if packaging audit needed.
+def verify_campaign(campaign_dir: Path, root: Path | None = None) -> dict[str, Any]:
     campaign_file = campaign_dir / "campaign.json"
     manifest_file = campaign_dir / "manifest.json"
     outcomes_file = campaign_dir / "outcomes.json"

@@ -13,10 +13,10 @@ All 48 configurations across network scales $N \in \{64, 256, 1024, 2048\}$ and 
   - RAM: 7.4 GiB LPDDR4X (host RSS cgroup capped at 5.2 GiB)
   - OS: Linux 5.10.0+ aarch64
 - Software stack:
-  - Python: 3.11.11
+  - Python: 3.11.15
   - PyTorch: 2.4.0
   - torch_npu: 2.4.0
-  - NumPy: 2.2.0
+  - NumPy: 2.4.6
   - CANN: 8.0.RC3
 - Verifiable receipt: [`results/baseline-comparison-receipt.json.gz`](results/baseline-comparison-receipt.json.gz)
 
@@ -51,7 +51,7 @@ Warm steady-state latencies (milliseconds, p50 / p95) and throughput (relaxation
 
 ### 2.2 Synaptic Plasticity (`Learner.step`)
 
-End-to-end learning step latency (free phase, nudged phases, contrast, device moment maintenance, parameter step):
+End-to-end learning step latency (free phase, nudged phases, contrast, parameter step):
 
 | Scale ($N$) | Batch ($B$) | CPU p50 / p95 (ms) | Torch CPU p50 / p95 (ms) | Ascend NPU p50 / p95 (ms) | Speedup (NPU / CPU) | CPU Param Updates/s | NPU Param Updates/s |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -76,7 +76,7 @@ End-to-end learning step latency (free phase, nudged phases, contrast, device mo
 
 ### 2.3 Teaching Contrast Computation (`Learner.contrast`)
 
-Throughput of two-phase contrast differences:
+Throughput of two-phase contrast differences (throughput computed from 5-iteration mean latency):
 
 | Scale ($N$) | Batch ($B$) | Synapses | CPU p50 (ms) | Torch CPU p50 (ms) | Ascend NPU p50 (ms) | CPU Synapses/s | NPU Synapses/s |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -88,14 +88,16 @@ Throughput of two-phase contrast differences:
 | 256 | 4 | 2,552 | 0.44 | 1.47 | 4.65 | 5,787,872 | 550,514 |
 | 256 | 16 | 2,552 | 0.62 | 1.59 | 4.81 | 4,083,318 | 513,977 |
 | 256 | 64 | 2,552 | 1.43 | 1.97 | 4.52 | 1,776,355 | 558,723 |
-| 1024 | 1 | 40,788 | 2.48 | 2.71 | 18.51 | 16,432,510 | 2,206,763 |
-| 1024 | 4 | 40,788 | 1.97 | 2.70 | 18.97 | 20,555,468 | 2,142,894 |
-| 1024 | 16 | 40,788 | 2.90 | 3.17 | 19.11 | 14,073,896 | 2,135,363 |
-| 1024 | 64 | 40,788 | 5.73 | 4.17 | 19.19 | 7,013,739 | 2,113,832 |
+| 1024 | 1 | 40,813 | 2.48 | 2.71 | 18.51 | 16,432,510 | 2,206,763 |
+| 1024 | 4 | 40,813 | 1.97 | 2.70 | 18.97 | 20,555,468 | 2,142,894 |
+| 1024 | 16 | 40,813 | 2.90 | 3.17 | 19.11 | 14,073,896 | 2,135,363 |
+| 1024 | 64 | 40,813 | 5.73 | 4.17 | 19.19 | 7,013,739 | 2,113,832 |
 | 2048 | 1 | 163,282 | 8.46 | 6.62 | 61.71 | 19,304,523 | 2,644,879 |
 | 2048 | 4 | 163,282 | 6.26 | 6.60 | 63.27 | 26,174,224 | 2,580,889 |
 | 2048 | 16 | 163,282 | 8.02 | 7.77 | 63.34 | 20,225,033 | 2,575,298 |
 | 2048 | 64 | 163,282 | 16.26 | 10.66 | 63.99 | 10,052,195 | 2,551,253 |
+
+*Note: Synapses/s throughput is computed from mean latency across 5 iterations (`synapses / mean_latency_s`), not the p50 latency column.*
 
 ---
 
@@ -149,8 +151,8 @@ Ascend CANN performs just-in-time compilation of CCE operator kernels for each u
 | 2048 | 16 | 93,394.8 | 134.07 | 142.57 | 3,903.9 | 308.07 | 314.73 |
 | 2048 | 64 | 9,493.1 | 169.47 | 179.06 | 751.4 | 363.63 | 374.79 |
 
-- **Cold compilation tax**: First encounter of a new dimension requires 8s to 93s of CCE code generation and compilation.
-- **Warm execution stability**: Once compiled into `kernel_meta`, warm steady-state latency exhibits low jitter (p95/p50 ratio $< 1.10$).
+- **Cold compilation tax**: First encounter of a new dimension requires 8s to 93s of CCE code generation and compilation. On CPU, cold execution is comparable to or faster than warm p50 (no JIT compilation; first iteration benefits from unpolluted cache and branch predictors).
+- **Warm execution stability**: Once compiled into `kernel_meta`, warm steady-state latency exhibits low jitter across iterations: p95/p50 ratio remains $\le 1.10$ across most configurations, with maximum ratio $\le 1.35$ (three exceptions exceeding 1.10: $N=256, B=1$ free relaxation at 1.35; $N=2048, B=4$ free relaxation at 1.11; $N=256, B=4$ synaptic plasticity at 1.10).
 
 ---
 
@@ -175,8 +177,8 @@ Ascend CANN performs just-in-time compilation of CCE operator kernels for each u
 ## 5. Numerical Qualification
 
 All 48 configurations across CPU, Torch CPU, and Ascend NPU maintained equation residuals strictly below the contract tolerance $0.003$:
-- CPU float64: residuals between $6.97 \times 10^{-12}$ and $5.40 \times 10^{-10}$.
+- CPU float64: residuals between $6.97 \times 10^{-12}$ and $2.92 \times 10^{-9}$.
 - Torch CPU float32: residuals between $4.68 \times 10^{-8}$ and $1.37 \times 10^{-7}$.
-- Ascend NPU float32: residuals between $5.47 \times 10^{-8}$ and $1.27 \times 10^{-7}$.
+- Ascend NPU float32: residuals between $5.47 \times 10^{-8}$ and $1.54 \times 10^{-7}$.
 
 Zero numerical divergence, zero NaN/Inf excursions, and zero solve refusals were witnessed throughout the multi-scale campaign.
