@@ -1,0 +1,51 @@
+{
+  "passed": true,
+  "backend": "cpu",
+  "device": "cpu",
+  "size": 256,
+  "batch": 64,
+  "neurons": 256,
+  "synapses": 2552,
+  "inputs": 8,
+  "outputs": 4,
+  "hidden": 244,
+  "iterations": 5,
+  "warmup": 1,
+  "seed": 42,
+  "free_relaxation": {
+    "cold_latency_ms": 41.458116997091565,
+    "p50_latency_ms": 39.20506999565987,
+    "p95_latency_ms": 39.5496824014117,
+    "relaxation_steps_per_sec": 814.4230867216052,
+    "sample_steps_per_sec": 52123.07755018273,
+    "max_residual": 2.801062298773971e-10,
+    "qualified": true
+  },
+  "teaching_contrast": {
+    "cold_latency_ms": 1.585705998877529,
+    "p50_latency_ms": 1.431996002793312,
+    "p95_latency_ms": 1.4666251998278312,
+    "synapses_per_sec": 1776354.9579442705,
+    "nudged_residual": 1.0597673849588318e-09
+  },
+  "synaptic_plasticity": {
+    "cold_latency_ms": 57.38629800180206,
+    "p50_latency_ms": 65.12065599963535,
+    "p95_latency_ms": 65.21813619910972,
+    "mean_latency_ms": 64.97858379880199,
+    "min_latency_ms": 64.25345900061075,
+    "param_updates_per_sec": 43214.238228007845,
+    "steps_per_sec": 15.38968597863527,
+    "sample_updates_per_sec": 984.9399026326573,
+    "scale_step": 1.0301468684919974e-05,
+    "bias_step": 2.48073758255783e-05,
+    "device_moments": false
+  },
+  "memory": {
+    "host_rss_before_bytes": 150228992,
+    "host_rss_peak_bytes": 153309184,
+    "host_rss_peak_mib": 146.21
+  },
+  "wall_seconds": 0.7103090669988887,
+  "run_key": "cpu_s256_b64"
+}
