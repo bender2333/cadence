@@ -1395,18 +1395,23 @@ founder genes for a small share of moments; the
 
 ## Certificate (`cadence.certificate`)
 
-- `certificate(brain) -> Certificate`: the settling certificate of the free phase, from
+- `certificate(brain, *, sources=None) -> Certificate`: the settling certificate of the free phase, from
   `row_mass(brain)`, `lipschitz_constant(brain.neuron_model)`, the model's `dt` and whether
-  it has adaptation. See [the certificate guide](certificate.md).
-- `Certificate(row_mass, lipschitz, dt, adaptation)` (frozen): properties `rate`
-  (`1 - dt * (1 - lipschitz * row_mass)`), `certified` (`rate < 1` and no adaptation) and
-  `mass_limit` (`1 / lipschitz`). `error_bound(movement)` is the remaining sup-norm distance
+  it has adaptation. When `sources` is supplied, asserts that `ep_structure(brain, fixed_inputs=sources).fixed_incoming_mass <= 1e-12`
+  (raising `ValueError("source neurons must have zero incoming effective mass")` otherwise), computes `row_mass_free`
+  across free-to-free edges, and returns a cascade certificate with rate `max(rate_free, 1 - dt)`.
+  When `sources=None`, preserves full-graph row-mass contraction. See [the certificate guide](certificate.md).
+- `Certificate(row_mass, lipschitz, dt, adaptation, row_mass_free=None, sources=None)` (frozen):
+  fields `row_mass_free` (maximum incoming effective weight sum on free neurons excluding source projections) and
+  `sources` (tuple of source neuron indices); properties `rate` (`max(rate_free, 1 - dt)` when `row_mass_free` is present,
+  else `1 - dt * (1 - lipschitz * row_mass)`), `rate_free` (`1 - dt * (1 - lipschitz * row_mass_free)` if `row_mass_free` is present else `None`),
+  `certified` (`rate < 1` and no adaptation) and `mass_limit` (`1 / lipschitz`). `error_bound(movement)` is the remaining sup-norm distance
   `movement / (1 - rate)` from the last step's potential movement, per row, and
   `apriori_bound(first_movement, steps)` is `first_movement * rate ** steps / (1 - rate)`;
   both return infinity for an uncertified brain. `steps_for(change, tolerance)` returns the
   warm-start steps after a stimulus change of sup-norm size `change` (zero for no change)
   and raises `ValueError` for an uncertified brain. `to_dict()`. Construction requires
-  finite values, a nonnegative `row_mass`, a positive `lipschitz` and `dt` in `(0, 1]`.
+  finite values, a nonnegative `row_mass`, a positive `lipschitz`, `dt` in `(0, 1]`, and nonnegative finite `row_mass_free` when provided.
 - `row_mass(brain) -> float`: the largest absolute incoming effective weight sum over all
   neurons.
 - `lipschitz_constant(model) -> float`: the supremum of the activation's slope,
