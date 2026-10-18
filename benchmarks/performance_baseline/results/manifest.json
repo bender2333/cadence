@@ -63,8 +63,8 @@
   "harness_sha256_lf": {
     "__init__.py": "6f9345b6c88e2362e540cfe9baf15e9640eaf74e247c3b39f93b1b3f710bedca",
     "campaign.py": "f57ad24d0847048e7024bae961d7ddaa65aa28d8d253a97184486656488fd3a1",
-    "harness.py": "a6e1ebd36a6d76d16a06e011c8ee1bde7bec78af78698c086680b9a94bc2f6ad",
-    "verify.py": "f7961f596722b83dc29c3fc5c4e44cebef4a6d8dffb89394175847054c70756d"
+    "harness.py": "a4bb7c7c0d8dfc7f40b70a9e72ae9862d35c6c4774f27fe03bc70dfb20a1405b",
+    "verify.py": "040744b94fc6147ebd29f7cdae68275ceef0fd00e5c6d2a3e8240a03a0399984"
   },
   "protocol_sha256_lf": "2c98322da1cf88e73b26314f691abba92fc800f344c26c3c43bb6be8cc4369e2",
   "protocol": {
