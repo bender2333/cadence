@@ -28,7 +28,7 @@ All 48 configurations across network scales $N \in \{64, 256, 1024, 2048\}$ and 
 
 Warm steady-state latencies (milliseconds, p50 / p95) and throughput (relaxation steps per second) to residual $\le 0.003$:
 
-| Scale ($N$) | Batch ($B$) | CPU (NumPy f64) p50 / p95 (ms) | Torch CPU (f32) p50 / p95 (ms) | Ascend NPU (f32) p50 / p95 (ms) | Speedup (NPU / CPU) | CPU Steps/s | NPU Steps/s |
+| Scale ($N$) | Batch ($B$) | CPU (NumPy f64) p50 / p95 (ms) | Torch CPU (f32) p50 / p95 (ms) | Ascend NPU (f32) p50 / p95 (ms) | Speedup (CPU / NPU) | CPU Steps/s | NPU Steps/s |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 64 | 1 | 1.49 / 1.65 | 33.15 / 33.39 | 84.97 / 93.33 | 0.02x | 21,024 | 373 |
 | 64 | 4 | 1.90 / 1.99 | 34.73 / 34.87 | 122.45 / 125.66 | 0.02x | 16,721 | 265 |
@@ -53,7 +53,7 @@ Warm steady-state latencies (milliseconds, p50 / p95) and throughput (relaxation
 
 End-to-end learning step latency (free phase, nudged phases, contrast, parameter step):
 
-| Scale ($N$) | Batch ($B$) | CPU p50 / p95 (ms) | Torch CPU p50 / p95 (ms) | Ascend NPU p50 / p95 (ms) | Speedup (NPU / CPU) | CPU Param Updates/s | NPU Param Updates/s |
+| Scale ($N$) | Batch ($B$) | CPU p50 / p95 (ms) | Torch CPU p50 / p95 (ms) | Ascend NPU p50 / p95 (ms) | Speedup (CPU / NPU) | CPU Param Updates/s | NPU Param Updates/s |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 64 | 1 | 4.50 / 4.64 | 46.73 / 47.12 | 117.43 / 122.87 | 0.04x | 137,120 | 5,266 |
 | 64 | 4 | 5.34 / 5.61 | 47.13 / 47.19 | 155.81 / 158.49 | 0.03x | 114,323 | 3,983 |
@@ -151,7 +151,7 @@ Ascend CANN performs just-in-time compilation of CCE operator kernels for each u
 | 2048 | 16 | 93,394.8 | 134.07 | 142.57 | 3,903.9 | 308.07 | 314.73 |
 | 2048 | 64 | 9,493.1 | 169.47 | 179.06 | 751.4 | 363.63 | 374.79 |
 
-- **Cold compilation tax**: First encounter of a new dimension requires 8s to 93s of CCE code generation and compilation. On CPU, cold execution is comparable to or faster than warm p50 (no JIT compilation; first iteration benefits from unpolluted cache and branch predictors).
+- **Cold compilation tax**: First encounter of a new dimension requires 8s to 93s of CCE code generation and compilation on NPU. CPU cold free solves are slower than warm p50 in all 32 configurations (ratio 1.006x–708.7x); the first call is dominated by one-time Numba compilation, and unlike CANN there is no recurring per-shape JIT cost.
 - **Warm execution stability**: Once compiled into `kernel_meta`, warm steady-state latency exhibits low jitter across iterations: p95/p50 ratio remains $\le 1.10$ across most configurations, with maximum ratio $\le 1.35$ (three exceptions exceeding 1.10: $N=256, B=1$ free relaxation at 1.35; $N=2048, B=4$ free relaxation at 1.11; $N=256, B=4$ synaptic plasticity at 1.10).
 
 ---
@@ -170,7 +170,7 @@ Ascend CANN performs just-in-time compilation of CCE operator kernels for each u
 | 2048 | 64 | 202.2 | 1,418.5 | 14.389 | 42.0 |
 
 - **On-device tensor allocations**: Tensor memory consumption on Ascend 310B4 is compact, consuming at most **14.39 MiB** allocated (42.0 MiB reserved by PyTorch caching allocator) at $N = 2048, B = 64$.
-- **Host RSS footprint**: CPU execution consumes 139–202 MiB RSS. The NPU arm exhibits a 1,418.5 MiB host RSS baseline attributed to the CANN runtime dynamic libraries, driver memory mappings, and CCE compilation engine, comfortably fitting within the board's 5.2 GiB cgroup limit.
+- **Host RSS footprint**: Host Peak RSS is measured via `resource.getrusage(RUSAGE_SELF).ru_maxrss` across the worker process lifetime (cumulative per-process peak). CPU execution consumes 139–202 MiB RSS across configurations. The NPU arm exhibits a 1,418.5 MiB host RSS baseline attributed to the CANN runtime dynamic libraries, driver memory mappings, and CCE compilation engine, comfortably fitting within the board's 5.2 GiB cgroup limit.
 
 ---
 
