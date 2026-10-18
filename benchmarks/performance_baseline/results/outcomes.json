@@ -3,7 +3,6 @@
     "backend": "cpu",
     "exit_code": 0,
     "seconds": 18.702444525006285,
-    "log": "worker_cpu.log",
     "command": [
       "/root/cadence/.venv/bin/python",
       "-X",
@@ -24,7 +23,6 @@
     "backend": "torch_cpu",
     "exit_code": 0,
     "seconds": 27.631652973999735,
-    "log": "worker_torch_cpu.log",
     "command": [
       "/root/cadence/.venv/bin/python",
       "-X",
@@ -45,7 +43,6 @@
     "backend": "npu",
     "exit_code": 0,
     "seconds": 2178.5603382109985,
-    "log": "worker_npu.log",
     "command": [
       "/root/cadence/.venv/bin/python",
       "-X",
