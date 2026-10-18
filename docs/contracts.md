@@ -126,6 +126,29 @@ revision and backend for reproducible results, and run parity checks when
 changing device or precision. See [backends](backends.md), [API](api.md) and
 [receipts](receipts.md).
 
+### Backend devices and precision rules
+
+The numerical foundation supports CPU, CUDA, Apple Silicon MPS and Ascend NPU
+devices through NumPy/Numba or PyTorch (`backend="torch"`). Accelerator devices
+enforce explicit precision contracts:
+
+- **Ascend NPU** (`device="npu"` or `"npu:0"` via `torch_npu`): Ascend hardware
+  (Ascend 310B4 on Orange Pi AIpro) executes exclusively in `precision="float32"`.
+  Requests for `float64` raise `ValueError` at construction (`NeuralGraph` and
+  `Brain.compose`); double precision is not emulated or truncated on the AI Core.
+  Parameters, activations and adaptive optimizer moments remain resident on device
+  in float32. Equilibrium relaxation and supervised phases evaluate against the
+  declared residual tolerance (`learning.tolerance`, default `3e-3`) in float32
+  without relaxation. Checkpoints saved on NPU retain complete float32 parameters
+  and restore across CPU float64 or NPU float32 backends while preserving pending
+  feedback transactions, trace state, and associative memory.
+- **Apple Silicon MPS** (`device="mps"`): operates in `precision="float32"`;
+  requesting `float64` raises `ValueError`.
+- **NVIDIA CUDA** (`device="cuda"`): supports `precision="float64"` and
+  `precision="float32"`.
+- **CPU** (`backend="cpu"` or `backend="torch", device="cpu"`): executes in
+  `float64`.
+
 ## Biological imports and recursive observation
 
 A connectome provides structural evidence, not a complete dynamical model.
