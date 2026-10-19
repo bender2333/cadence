@@ -944,7 +944,8 @@ class Brain:
             v, a, s, traj, taken, activity_change, handle = kernel.run(
                 v, a, drive, keep, steps, trajectory, nudge, tolerance, state, capture
             )
-        elif self._blocks is not None and not trajectory and capture is None and _FUSED:
+        elif (self._blocks is not None and not trajectory and capture is None and _FUSED
+              and self.neuron_model.family == "sigmoid"):  # the compiled kernel knows the sigmoid only
             from .fused import fused_settle
 
             s, taken, activity_change = fused_settle(
@@ -1046,7 +1047,7 @@ class Brain:
         a = np.atleast_2d(state.adaptation)
         if v.shape != d.shape or a.shape != d.shape:
             raise ValueError("state batch does not match the drive batch")
-        if self._blocks is not None and _FUSED:
+        if self._blocks is not None and _FUSED and self.neuron_model.family == "sigmoid":
             # the same equations in one compiled pass: a checked settle on the CPU then
             # costs one transport per chunk, not one NumPy operation per term
             from .fused import fused_residual
@@ -1332,8 +1333,27 @@ class _TorchKernel:
             out[:, b0:b1] += cache[k]
         return out
 
+    def _evenodd_tensors(self, n: int) -> tuple[Any, Any, Any]:
+        cached = getattr(self, "_evenodd_cache", None)
+        if cached is None or cached[0] != n:
+            torch = self.torch
+            a, b, mask = self.neuron_model.evenodd_parameters(n)
+            def put(x: Any) -> Any:
+                if isinstance(x, np.ndarray):
+                    return torch.from_numpy(np.ascontiguousarray(x)).to(self.device, self.dtype)
+                return float(x)
+            m = None if mask is None else torch.from_numpy(mask).to(self.device)
+            cached = (n, put(a), put(b), m)
+            self._evenodd_cache = cached
+        return cached[1], cached[2], cached[3]
+
     def _activation(self, v: Any) -> Any:
         torch, neuron_model = self.torch, self.neuron_model
+        if neuron_model.family == "evenodd":
+            a, b, mask = self._evenodd_tensors(int(v.shape[-1]))
+            t = torch.tanh(0.5 * v)
+            s = t * (a + b * t)
+            return s if mask is None else torch.where(mask, v, s)
         if self._rest is None:  # one scalar on the device, made once
             self._rest = torch.tensor(
                 neuron_model.rest_emission, dtype=self.dtype, device=self.device
@@ -1627,6 +1647,8 @@ class _MlxKernel:
 
     def _activation(self, v: Any) -> Any:
         mx, neuron_model = self.mx, self.neuron_model
+        if neuron_model.family != "sigmoid":
+            raise NotImplementedError("the mlx backend implements the sigmoid family only")
         rest = neuron_model.rest_emission
         r = mx.sigmoid(neuron_model.slope * (v - neuron_model.threshold)) - rest
         s = mx.maximum(r, 0.0) / (1.0 - rest)

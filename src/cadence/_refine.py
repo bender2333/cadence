@@ -18,7 +18,7 @@ def _geometry(brain: Brain, input_index: np.ndarray) -> tuple[np.ndarray, ...]:
     rule = brain.neuron_model
     if brain.backend != "cpu":
         raise ValueError("hybrid refinement requires the float64 CPU backend")
-    if (rule.slope, rule.threshold, rule.leak) != (1.0, 0.0, 1.0) or rule.adaptation:
+    if rule.family != "sigmoid" or (rule.slope, rule.threshold, rule.leak) != (1.0, 0.0, 1.0) or rule.adaptation:
         raise ValueError("hybrid refinement requires smooth tanh(v/2), without adaptation")
     n = brain.connectome.n
     inputs = np.asarray(input_index)
