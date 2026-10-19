@@ -32,10 +32,38 @@ if TYPE_CHECKING:
     from .neuron import NeuronModel
 
 
-def lipschitz_constant(model: NeuronModel) -> float:
-    """Supremum of the activation's slope: ``(lambda / 4) max(1 / (1 - rho), leak / rho)``."""
+def lipschitz_constant(model: NeuronModel, n: int | None = None) -> float:
+    """Supremum of the activation's slope: ``(lambda / 4) max(1 / (1 - rho), leak / rho)``.
+
+    For the ``evenodd`` family it is the largest per-neuron constant (closed form, see
+    ``cadence.neuron.evenodd_lipschitz``; one for a linear neuron); per-neuron scalars
+    need no ``n``, per-neuron tuples take their length.
+    """
+    if model.family == "evenodd":
+        if n is None:
+            sizes = [len(x) for x in (model.odd, model.even) if isinstance(x, tuple)]
+            n = sizes[0] if sizes else (max(model.linear) + 1 if model.linear else 1)
+        return float(model.lipschitz_per_neuron(n).max())
     rest = model.rest_emission
     return float(model.slope / 4.0 * max(1.0 / (1.0 - rest), model.leak / rest))
+
+
+def weighted_row_mass(brain: Brain, free: np.ndarray | None = None) -> float:
+    """``max_i sum_j |W[j -> i]| L_j`` over receiving neurons ``i``, summing senders ``j``.
+
+    With ``free`` (a boolean mask) only free -> free synapses count and only free
+    receivers are maximised over: the weighted cascade row mass.
+    """
+    n = brain.connectome.n
+    lip = brain.neuron_model.lipschitz_per_neuron(n)
+    pre, post = brain.connectome.pre, brain.connectome.post
+    w = np.abs(brain.weights) * lip[pre]
+    if free is not None:
+        keep = free[pre] & free[post]
+        incoming = np.bincount(post[keep], weights=w[keep], minlength=n)[free]
+    else:
+        incoming = np.bincount(post, weights=w, minlength=n)
+    return float(incoming.max()) if len(incoming) else 0.0
 
 
 def row_mass(brain: Brain) -> float:
@@ -56,6 +84,10 @@ class Certificate:
     adaptation: bool
     row_mass_free: float | None = None
     sources: tuple[int, ...] | None = None
+    # evenodd family: row masses already weighted by each sender's Lipschitz constant;
+    # when set they replace lipschitz * row_mass(_free) in the rate.
+    weighted_row_mass: float | None = None
+    weighted_row_mass_free: float | None = None
 
     def __post_init__(self) -> None:
         if not np.isfinite([self.row_mass, self.lipschitz, self.dt]).all():
@@ -77,6 +109,8 @@ class Certificate:
         """Contraction rate on the free block; None when whole-graph."""
         if self.row_mass_free is None:
             return None
+        if self.weighted_row_mass_free is not None:
+            return 1.0 - self.dt * (1.0 - self.weighted_row_mass_free)
         return 1.0 - self.dt * (1.0 - self.lipschitz * self.row_mass_free)
 
     @property
@@ -88,8 +122,11 @@ class Certificate:
         ``max(rate_free, 1 - dt)``.
         """
         if self.row_mass_free is not None:
-            rate_free = 1.0 - self.dt * (1.0 - self.lipschitz * self.row_mass_free)
+            rate_free = self.rate_free
+            assert rate_free is not None
             return max(rate_free, 1.0 - self.dt)
+        if self.weighted_row_mass is not None:
+            return 1.0 - self.dt * (1.0 - self.weighted_row_mass)
         return 1.0 - self.dt * (1.0 - self.lipschitz * self.row_mass)
     @property
     def certified(self) -> bool:
@@ -180,6 +217,8 @@ class Certificate:
             "adaptation": self.adaptation,
             "row_mass_free": self.row_mass_free,
             "sources": self.sources,
+            "weighted_row_mass": self.weighted_row_mass,
+            "weighted_row_mass_free": self.weighted_row_mass_free,
         }
 
 
@@ -200,9 +239,17 @@ def certificate(brain: Brain, *, sources: Sequence[int] | None = None) -> Certif
     """
     model = brain.neuron_model
     full_row_mass = row_mass(brain)
-    lipschitz = lipschitz_constant(model)
+    n = brain.connectome.n
+    lipschitz = lipschitz_constant(model, n)
     dt = float(model.dt)
     adaptation = model.adaptation is not None
+    evenodd = model.family == "evenodd"
+    if evenodd and model.linear:
+        lin = np.zeros(n, dtype=bool)
+        lin[list(model.linear)] = True
+        if (np.abs(brain.weights)[lin[brain.connectome.post]] > 1e-12).any():
+            raise ValueError("a linear neuron must have no incoming effective synapse")
+    weighted = weighted_row_mass(brain) if evenodd else None
 
     if sources is None:
         return Certificate(
@@ -210,6 +257,7 @@ def certificate(brain: Brain, *, sources: Sequence[int] | None = None) -> Certif
             lipschitz=lipschitz,
             dt=dt,
             adaptation=adaptation,
+            weighted_row_mass=weighted,
         )
 
     structure = ep_structure(brain, fixed_inputs=sources)
@@ -235,6 +283,8 @@ def certificate(brain: Brain, *, sources: Sequence[int] | None = None) -> Certif
         adaptation=adaptation,
         row_mass_free=row_mass_free,
         sources=structure.fixed_inputs,
+        weighted_row_mass=weighted,
+        weighted_row_mass_free=weighted_row_mass(brain, ~is_source) if evenodd else None,
     )
 
 @dataclass(frozen=True)
