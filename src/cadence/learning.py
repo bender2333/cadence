@@ -60,6 +60,9 @@ __all__ = [
     "layered",
     "embedded",
     "learning_neuron_model",
+    "evenodd_neuron_model",
+    "time_shared_entry",
+    "tie_rates",
     "LearnedState",
     "calibrate_bias",
     "naive_efficacy",
@@ -1641,6 +1644,109 @@ def learning_neuron_model(
         stimulus_amplitude=stimulus_amplitude,
         leak=leak,
     )
+
+
+def evenodd_neuron_model(
+    odd: float | Sequence[float] = 1.0,
+    even: float | Sequence[float] = 0.0,
+    *,
+    linear: Sequence[int] = (),
+    gain: float = 1.0,
+    dt: float = 0.5,
+    stimulus_amplitude: float = 1.0,
+) -> NeuronModel:
+    """A smooth rule with an even component: ``s = odd tanh(v/2) + even tanh(v/2)^2``.
+
+    ``odd`` and ``even`` are scalars or one value per neuron (a population's value
+    repeated over its members). Neurons in ``linear`` publish their potential (``s = v``):
+    a clamped input population whose level reaches the free neurons unchanged. With
+    ``odd=1, even=0`` and no linear neurons this is ``learning_neuron_model(leak=1.0)``.
+    The settling certificate weights each sender by its own Lipschitz constant.
+    """
+    def norm(x: float | Sequence[float]) -> float | tuple[float, ...]:
+        if np.ndim(x) == 0:
+            return float(x)  # type: ignore[arg-type]
+        return tuple(float(v) for v in np.asarray(x, float).ravel())
+
+    return NeuronModel(
+        dt=dt,
+        slope=1.0,
+        threshold=0.0,
+        gain=gain,
+        stimulus_amplitude=stimulus_amplitude,
+        leak=0.0,
+        family="evenodd",
+        odd=norm(odd),
+        even=norm(even),
+        linear=tuple(int(i) for i in linear),
+    )
+
+
+def time_shared_entry(
+    channels: int,
+    positions: int,
+    filters: int,
+    *,
+    source_offset: int = 0,
+    entry_offset: int | None = None,
+    filter_positions: Sequence[Sequence[int]] | None = None,
+    group_offset: int = 0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """One-way entry synapses shared across time: the same spatial filter at every position.
+
+    Source ``(p, c)`` is neuron ``source_offset + p * channels + c``. Entry neuron ``(k, p)``
+    reads the ``channels`` sources of position ``p``; the synapse ``(p, c) -> (k, p)`` belongs
+    to tie group ``group_offset + k * channels + c`` at every position, so a filter is one
+    vector ``W[k, :]`` (time-shift invariance). ``filter_positions[k]`` lists the positions
+    filter ``k`` covers (default all), so groups of different sizes can coexist. Entry
+    neurons are numbered filter-major over their covered positions from ``entry_offset``
+    (default right after the sources). Returns ``(pre, post, tie_groups, entry_neurons)``
+    where ``entry_neurons[k]`` maps a covered position to its neuron (-1 if not covered).
+    Initial efficacies of one group must be equal; pass ``tie_groups`` to ``Learner`` with
+    ``synapse_rate=tie_rates(tie_groups)`` so a group's step is the sum of its members'.
+    """
+    for name, value in (("channels", channels), ("positions", positions), ("filters", filters)):
+        if isinstance(value, bool) or not isinstance(value, (int, np.integer)) or value < 1:
+            raise ValueError(f"{name} must be a positive integer")
+    cover = [list(range(positions))] * filters if filter_positions is None else [
+        sorted(int(p) for p in ps) for ps in filter_positions
+    ]
+    if len(cover) != filters or any(
+        len(ps) == 0 or len(set(ps)) != len(ps) or ps[0] < 0 or ps[-1] >= positions for ps in cover
+    ):
+        raise ValueError("filter_positions needs one nonempty set of valid positions per filter")
+    start = source_offset + channels * positions if entry_offset is None else entry_offset
+    entry = -np.ones((filters, positions), dtype=np.int64)
+    neuron = start
+    for k in range(filters):
+        for p in cover[k]:
+            entry[k, p] = neuron
+            neuron += 1
+    pre, post, tie = [], [], []
+    for k in range(filters):
+        for p in cover[k]:
+            for c in range(channels):
+                pre.append(source_offset + p * channels + c)
+                post.append(int(entry[k, p]))
+                tie.append(group_offset + k * channels + c)
+    return (np.asarray(pre, np.int64), np.asarray(post, np.int64), np.asarray(tie, np.int64), entry)
+
+
+def tie_rates(tie_groups: np.ndarray, synapses: int | None = None) -> np.ndarray:
+    """Per-synapse step multiplier: a tied synapse's group size, one for an untied synapse.
+
+    ``Learner`` moves a tie group by the mean of its members' scaled contrasts; scaling each
+    member by the group size makes the move the sum, the gradient of the shared weight.
+    """
+    groups = np.asarray(tie_groups, dtype=np.int64)
+    if synapses is not None and groups.shape != (synapses,):
+        raise ValueError("tie_groups must have one entry per synapse")
+    rate = np.ones(len(groups))
+    tied = groups >= 0
+    if tied.any():
+        _, inverse, counts = np.unique(groups[tied], return_inverse=True, return_counts=True)
+        rate[tied] = counts[inverse]
+    return rate
 
 
 def calibrate_bias(
